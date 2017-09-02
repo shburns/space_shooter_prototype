@@ -1,0 +1,232 @@
+<html>
+    <head>
+        <script>
+            pX = pY = 0;
+            pSize = 20;
+            enemySize = 20;
+            bulletSize = 10;
+            score = 0;
+            isMovingUp = isMovingDown = isMovingLeft = isMovingRight = false;
+            pColor = "white";
+            bulletColor = "green";
+            enemyColor = "red";
+            bgColor = "black";
+            bullets = [];
+            enemies = [];
+            isGameOver = false;
+            elHandle = glHandle = null;
+
+            window.onload = function () {
+                cvs = document.getElementById("cvs");
+                ctx = cvs.getContext("2d");
+                document.addEventListener("keydown", keyDownHandler);
+                document.addEventListener("keyup", keyUpHandler);
+                initGame();
+            }
+
+            function initGame() {
+                pX = (cvs.width/2) - (pSize * 2);
+                pY = cvs.height - (pSize);
+                score = 0;
+                glHandle = setInterval(gameLoop, 1000/30);
+                elHandle = setInterval(enemySpawn, 1000/3);
+            }
+
+            function fireWeapon() {
+                bullets.push({
+                    x: pX + (pSize / 2),
+                    y: pY
+                });
+            }
+
+            function updateBullets() {
+                bullets.forEach((bullet, i) => {
+                    if (bullet.y - (bulletSize) < 0) {
+                        bullets.splice(i, 1);
+                    } else {
+                        bullet.y -= (bulletSize * 2);
+                    }
+                });
+            }
+
+            function drawBullets() {
+                bullets.forEach(bullet => {
+                    ctx.fillStyle = bulletColor;
+                    ctx.fillRect(bullet.x, bullet.y, bulletSize, bulletSize);
+                })
+            }
+
+            function enemySpawn() {
+                var newPos = Math.floor(Math.random() * cvs.width);
+                enemies.push({
+                    x: newPos,
+                    y: 0
+                });
+            }
+
+            function updateEnemies() {
+                enemies.forEach((enemy, i) => {
+                    var updateEnemy = true;
+                    if((enemy.y + (enemySize * 2)) > cvs.height) {
+                        enemies.splice(i, 1);
+                    } else {
+                        bullets.forEach((bullet, j) => {
+                            if (bullet.x + bulletSize >= enemy.x 
+                                && bullet.x <= (enemy.x + enemySize)
+                                && bullet.y + bulletSize >= enemy.y 
+                                && bullet.y <= (enemy.y + enemySize)) {
+                                    bullets.splice(j, 1);
+                                    enemies.splice(i, 1);
+                                    score += 10;
+                                    updateEnemy = false;
+                            }
+                        });
+                        if (updateEnemy) {
+                            enemy.y += enemySize;
+                        }
+                    }
+                });
+            }
+
+            function drawEnemies() {
+                enemies.forEach(enemy => {
+                    ctx.fillStyle = enemyColor;
+                    ctx.beginPath();
+                    ctx.moveTo(enemy.x, enemy.y);
+                    ctx.lineTo(enemy.x + (enemySize / 2), enemy.y + enemySize);
+                    ctx.lineTo(enemy.x + enemySize, enemy.y);
+                    ctx.fill();
+                });
+            }
+
+            function updatePlayerPosition() {
+                enemies.forEach(enemy => {
+                    if (pX + pSize >= enemy.x 
+                        && pX <= enemy.x + enemySize
+                        && pY + pSize >= enemy.y 
+                        && pY <= enemy.y + enemySize) {
+                            isGameOver = true;
+                            gameOver();
+                        }
+                });
+                if (isGameOver) { return; }
+                if (isMovingLeft && (pX - (pSize/2)) >= 0) {
+                    pX -= (pSize/2);
+                } else if (isMovingRight && (pX + pSize) < cvs.width) {
+                    pX += (pSize/2);
+                }
+                if (isMovingUp && (pY - (pSize/2)) >= 0) {
+                    pY -= (pSize/2);
+                } else if (isMovingDown && (pY + pSize) < cvs.height) {
+                    pY += (pSize/2);
+                }
+            }
+
+            function drawPlayer() {
+                ctx.fillStyle = pColor;
+                ctx.beginPath();
+                ctx.moveTo(pX + (pSize / 2), pY);
+                ctx.lineTo(pX + pSize, pY + pSize);
+                ctx.lineTo(pX, pY + pSize);
+                ctx.fill();
+            }
+
+            function drawScore() {
+                ctx.fillStyle = pColor;
+                ctx.font = '18px sans bold';
+                ctx.fillText("Score: " + score, cvs.width - 100, 25);
+            }
+
+            function drawGameOverScreen() {
+                ctx.fillStyle = bgColor;
+                ctx.fillRect(0, 0, cvs.width, cvs.height);
+                drawScore();
+                ctx.fillStyle = pColor;
+                ctx.font = "24px sans bold";
+                ctx.fillText(
+                    "Game Over", 
+                    Math.floor(cvs.width/2) - 50, 
+                    Math.floor(cvs.height/2) - 12
+                );
+            }
+
+            function gameLoop() {
+                ctx.fillStyle = bgColor;
+                ctx.fillRect(0,0,cvs.width, cvs.height);
+                updateBullets();
+                updateEnemies();
+                drawBullets();
+                drawEnemies();
+                updatePlayerPosition();
+                if (isGameOver) { return; }
+                drawPlayer();
+                drawScore();
+            }
+
+            function gameOver() {
+                bullets = [];
+                enemies = [];
+                clearInterval(glHandle);
+                clearInterval(elHandle);
+                drawGameOverScreen();
+            }
+
+            function keyDownHandler(evt) {
+                if (isGameOver) {
+                    initGame();
+                    isGameOver = false;
+                    return;
+                }
+                switch(evt.keyCode) {
+                    case 65:
+                    case 37:
+                        isMovingRight = false;
+                        isMovingLeft = true;
+                        break;
+                    case 87:
+                    case 38:
+                        isMovingDown = false;
+                        isMovingUp = true;
+                        break;
+                    case 68:
+                    case 39:
+                        isMovingLeft = false;
+                        isMovingRight = true;
+                        break;
+                    case 83:
+                    case 40:
+                        isMovingUp = false;
+                        isMovingDown = true;
+                        break;
+                    case 32:
+                        fireWeapon();
+                        break;
+                }
+            }
+
+            function keyUpHandler(evt) {
+                switch(evt.keyCode) {
+                    case 65:
+                    case 37:
+                        isMovingLeft = false;
+                        break;
+                    case 87:
+                    case 38:
+                        isMovingUp = false;
+                        break;
+                    case 68:
+                    case 39:
+                        isMovingRight = false;
+                        break;
+                    case 83:
+                    case 40:
+                        isMovingDown = false;
+                        break;
+                }
+            }
+        </script>
+    </head>
+    <body>
+        <canvas id="cvs" height="480" width="640"/>
+    </body>
+</html>
